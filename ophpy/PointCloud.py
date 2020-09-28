@@ -6,7 +6,7 @@ from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 
 
-# parameters
+# unit parameters
 mm = 1e-3
 um = mm * mm
 nm = um * mm
@@ -44,6 +44,7 @@ def h_Frsn(x1, y1, z1, x2, y2, z2, wvl, pp):
         h_i = 0
     return h_r, h_i
 
+
 @njit(nogil=True)
 def Conv(x1, y1, z1, z2, amp, h, w, pp, wvl, method):
     ch_r = np.zeros((h, w))
@@ -56,13 +57,24 @@ def Conv(x1, y1, z1, z2, amp, h, w, pp, wvl, method):
                 ch_r[i, j], ch_i[i, j] = h_RS(x1, y1, z1, x2, y2, z2, wvl, pp)
             else:
                 ch_r[i, j], ch_i[i, j] = h_Frsn(x1, y1, z1, x2, y2, z2, wvl, pp)
-    #print('point done')
     return (ch_r + 1j * ch_i) * amp
 
 
-class Integral:
-    def __init__(self, plypath, method='RS', f=1, angleX=0, angleY=0, Red=639*nm, Green=525*nm, Blue=463*nm, SLM_width=3840, SLM_height=2160, scaleXY=0.03, scaleZ=0.25, pixel_pitch=3.6*um):
-        self.z = f  # Propagation distance
+class Propagation:
+    """
+    Get Fringe pattern by Point Cloud data(.ply)
+
+    Parameters
+    plypath : .ply file path
+    angle : phase shift angle
+    Red, Green, Blue : wavelength of RGB color
+    scale : scaling factor
+
+    http://openholo.org/
+    """
+    def __init__(self, plypath, method='RS', propagation_distance=1, angleX=0, angleY=0, Red=639*nm, Green=525*nm, Blue=463*nm,
+                 SLM_width=3840, SLM_height=2160, scaleXY=0.03, scaleZ=0.25, pixel_pitch=3.6*um, multicore=True):
+        self.z = propagation_distance  # Propagation distance
         self.methods = method
         self.thetaX = angleX * (np.pi / 180)
         self.thetaY = angleY * (np.pi / 180)
@@ -77,7 +89,10 @@ class Integral:
         with open(plypath, 'rb') as f:
             self.plydata = plyfile.PlyData.read(f)
             self.plydata = np.array(self.plydata.elements[1].data)
-        self.num_cpu = multiprocessing.cpu_count()  # number of CPU
+        if multicore:
+            self.num_cpu = multiprocessing.cpu_count()
+        else:
+            self.num_cpu = 1
         self.num_point = [i for i in range(len(self.plydata))]
         self.num_point = np.array(self.num_point)
 
@@ -182,15 +197,3 @@ class Integral:
         real = fname + '_RE.bmp'
         plt.imsave(real, re, cmap='gray')
         return im, re
-
-
-#if __name__ == '__main__':
-#    ff = 1 / (1 / (100 * mm) - 1 / (295 * mm))
-#    ff1 = 1 / (1/(100 * mm) + 1/(295*mm))
-#    ff2 = ff - 5 * mm
-#    f1 = Integral('point_aperture.ply', f=-ff1)
-#    f2 = Integral('point_aperture.ply', f=-ff2)
-#    ch = np.zeros((1024, 1024), dtype='complex128')
-#    ch += f1.CalHolo('green')
-#    ch -= f2.CalHolo('green')
-#    f2.getMonoImage(ch, '200921 GP model 2')

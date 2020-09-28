@@ -52,16 +52,16 @@ def h_frsn(pixel_pitch_x, pixel_pitch_y, nx, ny, zz, wvl):
 
 
 @njit
-def refwave(wvl, wr, hr, pp, thetaX, thetaY):
+def refwave(wvl, wr, hr, z, pp, thetaX, thetaY):
     a = np.zeros((hr, wr))
     b = np.zeros((hr, wr))
     for i in range(hr):
         for j in range(wr):
             x = (j - wr / 2) * pp
             y = -(i - hr / 2) * pp
-            a[i, j] = np.cos(-k(wvl) * (x * np.sin(thetaX) + y * np.sin(thetaY)))
-            b[i, j] = np.sin(-k(wvl) * (x * np.sin(thetaX) + y * np.sin(thetaY)))
-    return a - 1j * b
+            a[i, j] = np.cos(k(wvl) * (x * np.sin(thetaX) + y * np.sin(thetaY)))
+            b[i, j] = np.sin(k(wvl) * (x * np.sin(thetaX) + y * np.sin(thetaY)))
+    return (a / z) + 1j * (b / z)
 
 
 class Propagation:
@@ -74,9 +74,12 @@ class Propagation:
     angle : phase shift angle
     Red, Green, Blue : wavelength
     scale : scaling factor
+
+    http://openholo.org/
     """
-    def __init__(self, imgpath, f=1, angleX=0, angleY=0, Red=639*nm, Green=525*nm, Blue=463*nm, SLM_width=3840, SLM_height=2160, scale=0.03, pixel_pitch=3.6*um, zeropadding=3840):
-        self.zz = f
+    def __init__(self, imgpath, propagation_distance=1, angleX=0, angleY=0, Red=639*nm, Green=525*nm, Blue=463*nm,
+                 SLM_width=3840, SLM_height=2160, scale=0.03, pixel_pitch=3.6*um, zeropadding=3840):
+        self.zz = propagation_distance
         self.imagein = np.asarray(Image.open(imgpath))
         self.thetaX = angleX * (np.pi / 180)
         self.thetaY = angleY * (np.pi / 180)
@@ -118,7 +121,7 @@ class Propagation:
         return img_new
 
 
-    def Cal(self, color):
+    def Fresnel(self, color):
         if color == 'green':
             wvl = self.wvl_G
             image = self.img_G
@@ -129,16 +132,16 @@ class Propagation:
             wvl = self.wvl_R
             image = self.img_R
         # resize image
-        zzz = 1 * self.zz
+        image = np.flip(image, axis=0)
         ps = self.scale / (2*self.w)
-        phase = np.random.random((2*self.h, 2*self.w)) * 2 * np.pi  # random phas
+        phase = np.random.random((2*self.h, 2*self.w)) * 2 * np.pi  # random phase
         ph = np.exp(1j*phase)
         ph *= image
-        ch2 = ph * h_frsn(ps, ps, self.w + self.w, self.h + self.h, zzz, wvl)
+        ch2 = ph * h_frsn(ps, ps, self.w * 2, self.h * 2, self.zz, wvl)
         CH1 = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(ch2)))
-        result = CH1 * h_frsn(self.pp, self.pp, self.w+self.w, self.h+self.h, zzz, wvl)
+        result = CH1 * h_frsn(self.pp, self.pp, self.w * 2, self.h * 2, self.zz, wvl)
         result = result[self.h // 2: (3*self.h) // 2, self.w // 2: (3*self.w) // 2]
-        result *= refwave(wvl, zzz, self.pp, self.thetaX, self.thetaY)
+        result *= refwave(wvl, self.w, self.h, self.zz, self.pp, self.thetaX, self.thetaY)
         return result
 
     def ASM(self, color):
@@ -158,6 +161,7 @@ class Propagation:
         CH = CH * asm_kernel(wvl, self.zz, self.w, self.h, self.pp)
         result = self.ifft(CH)
         result = result[self.h: (2 * self.h), self.w: (2 * self.w)]
+        result *= refwave(wvl, self.w, self.h, self.zz, self.pp, self.thetaX, self.thetaY)
         return result
 
 
@@ -215,12 +219,3 @@ class Propagation:
         real = fname + '_RE.bmp'
         plt.imsave(real, re, cmap='gray')
         return im, re
-
-
-
-
-
-if __name__ == '__main__':
-    fs = FFT('imgin.bmp')
-    fs.getRGBImage(fs.ASM('red'), fs.ASM('green'), fs.ASM('blue'), '200922 ASM test.bmp', type='angle')
-    #fs.getRGBImage(fs.ASM('red'), fs.ASM('green'), fs.ASM('blue'), '200915 2D ASMFFT onaxis new4.bmp', type='angle')
