@@ -11,10 +11,10 @@ For more information about Openholo, see the openholo homepage [Here](http://ope
 pip install ophpy
 ```
 
-## Requirement
+### Requirement
 Numpy, Numba, Matplotlib, pillow, plyfile
 
-## Procedure
+### Procedure
 Data input > Propagation > Encoding > Normalization > Save
 
 ## Usage
@@ -22,7 +22,7 @@ Data input > Propagation > Encoding > Normalization > Save
 Generate Holographic Fringe pattern based on PointCloud data, 2D image, Depthmap image 
 
 
-### Example
+## Example
 ##### Point Cloud
 
 ```python
@@ -37,7 +37,7 @@ plt.imshow(np.angle(Red_image))  # show phase angle data of red light fringe pat
 RS.getRGBImage(Red_image, RS.CalHolo('green'), RS.CalHolo('blue'), 'test file name.bmp', type='angle')
 ```
 
-You can use 
+You can use Rayleigh-Sommerfeld diffraction or Fresnel diffraction integral
 
 ##### 2D image
 
@@ -51,7 +51,9 @@ plt.imshow(np.angle(Red_image))
 f.getRGBImage(Red_image, f.Fresnel('green'), f.Fresnel('blue'), 'test file name.bmp', type='angle')
 ```
 
-##### Postgresql
+You can use Angular spectrum method and Fresnel propagation using Single FFT
+
+##### Depthmap
 
 ```python
 from ophpy import Depthmap
