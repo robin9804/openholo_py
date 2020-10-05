@@ -8,7 +8,7 @@ For more information about Openholo, see the openholo homepage [Here](http://ope
 ## Installation
 
 ```python
-pip install ophpy
+python -m pip install ophpy
 ```
 
 ### Requirement
