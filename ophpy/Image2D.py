@@ -38,7 +38,7 @@ def asm_kernel(wvl, z, w, h, pp):
     return a + 1j * b
 
 
-@njit(nogil=True, cache=True)
+@njit
 def h_frsn(pixel_pitch_x, pixel_pitch_y, nx, ny, zz, wvl):
     re = np.zeros((ny, nx))
     im = np.zeros((ny, nx))
